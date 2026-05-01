@@ -1,0 +1,53 @@
+{
+  "summary": "First-pass full-stack testing of the PivotSafe contact form feature (FastAPI backend + Next.js frontend + Resend email + MongoDB persistence + per-IP rate limiting). All 6 backend pytest cases passed and all 4 frontend Playwright smoke flows passed. Resend integration is REAL — leads are persisted with email_status='sent' and a non-null email_id from the Resend sandbox.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/contact/_admin/recent", "issue": "Endpoint is unauthenticated and exposes PII (name, email, IP, message) of all leads. Code comment acknowledges this — guard or remove before production."},
+      {"endpoint": "/api/contact", "issue": "Rate limiter is in-process (deque in module memory). Will not work across multiple workers/replicas and resets on every backend restart. Acceptable for MVP but should be moved to Redis/Mongo for production."},
+      {"endpoint": "/api/contact", "issue": "_client_ip() trusts X-Forwarded-For unconditionally. In a multi-hop setup an attacker could spoof the header to bypass per-IP rate limiting. Consider trusting only the right-most proxy hop or using a known proxy whitelist."},
+      {"endpoint": "/api/contact", "issue": "ALLOWED_ORIGINS defaults to '*' which combined with allow_credentials=False is fine, but for production set explicit origins."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Hero / book-consultation-btn", "issue": "Hydration error: `<button data-testid='book-consultation-btn'>` wraps `<ShimmerButton>` which itself renders a native `<button>`. React logs 'In HTML, <button> cannot be a descendant of <button>' and 'Hydration failed because the server rendered HTML didn't match the client.' This still works functionally but is an a11y + hydration violation. Fix: change the outer wrapper to a `<span role='button' tabIndex={0}>` or pass the onClick handler directly into ShimmerButton instead of nesting buttons.", "selector": "[data-testid=\"book-consultation-btn\"]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Homepage", "issues": ["Heavy WebGL emits repeated 'GL_INVALID_OPERATION: glBlitFramebuffer' warnings in the console (non-blocking, but spammy in dev).", "Next.js Image warnings: 'truesec…ttp.jpg' and '/clients/aidbase-logo.svg' have width or height modified without the matching auto, breaking aspect ratio. Add either width:'auto' or height:'auto' style.", "Modal centers on the viewport with the body scroll-locked — works well; no contrast/spacing issues observed inside the modal."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_contact_api.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Fix the nested-button hydration error in /app/frontend/src/components/custom/hero.tsx (book-consultation-btn wrapping ShimmerButton).",
+    "Before production: guard or remove the /api/contact/_admin/recent endpoint (auth or env-flag).",
+    "Before production: move rate limiter from in-process deque to Redis/Mongo so it survives restarts and works across replicas.",
+    "Tighten _client_ip() to avoid X-Forwarded-For spoofing bypassing the rate limiter.",
+    "Set explicit ALLOWED_ORIGINS in production .env."
+  ],
+  "critical_code_review_comments": [
+    "server.py is small (~190 lines) and clean — no DRY violations; async/await used correctly throughout; Mongo _id excluded from /api/contact/_admin/recent via projection.",
+    "Lead is persisted before email send (good — never lose a lead even if Resend fails). Email status is updated post-send.",
+    "Honeypot logic correctly short-circuits BEFORE rate-limit + persistence, so bots don't burn rate-limit buckets nor pollute the DB. Verified.",
+    "Pydantic ContactRequest enforces name min_length=1, message min_length=5, EmailStr — validation works (verified 422 on empty name and bad email).",
+    "Frontend honeypot is properly hidden (left:-10000px) with tabIndex=-1, autoComplete=off. Good.",
+    "ContactWidget locks body scroll when modal open and resets it on cleanup — good.",
+    "API_BASE in contactWidget falls back to '' if env vars missing; would silently POST to /api/contact on the same origin. Acceptable for Next.js but worth a console.warn if neither env var is set.",
+    "hero.tsx nests a <button> inside ShimmerButton's <button> — hydration mismatch, see ui_bugs."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_contact_api.py (new)",
+    "/app/test_reports/pytest/pytest_results.xml (new)"
+  ],
+  "success_rate": {"backend": "100% (6/6)", "frontend": "100% (4/4 smoke flows)"},
+  "test_credentials": "N/A — no auth on the tested endpoints.",
+  "seed_data_creation": "Inserted ~6 TEST_-prefixed leads in MongoDB collection 'contact_leads' during testing (5 happy-path/rate-limit + 1 frontend submit). Resend sandbox sent ~6 real emails to hello@pivotsafe.com.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Rate-limit IP 203.0.113.99 is now BURNED for ~1 hour (4/3 hits). IPs 203.0.113.10/.20/.21/.30 each have 0-1 hits. The /api/contact/_admin/recent endpoint is unauthenticated and useful for assertions. Resend integration is live (sandbox) — keep test sends ≤5 per run. For frontend, allow ~10s for Next.js first-compile and use viewport 1920x1000; the homepage is heavy three.js. data-testids are all present and reliable.",
+  "rca_of_the_issue": "N/A — no bugs reproduced. Backend persistence verified by comparing the POST response id against the GET /api/contact/_admin/recent payload; email_status='sent' with non-null email_id confirms Resend integration. Honeypot test verified by submitting with website='http://spamsite.example' and asserting the unique TEST_HONEYPOT_<uuid> name was NOT present in /_admin/recent afterwards. Rate-limit verified by sending 4 requests with X-Forwarded-For=203.0.113.99 — first 3 returned 201, 4th returned 429 with detail mentioning rate limit."
+}
