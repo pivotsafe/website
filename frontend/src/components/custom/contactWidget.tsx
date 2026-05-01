@@ -62,6 +62,29 @@ export default function ContactWidget() {
     setTimeout(resetForm, 250);
   };
 
+  const extractErrorMessage = (data: unknown, fallback: string): string => {
+    if (!data || typeof data !== "object") return fallback;
+    const detail = (data as { detail?: unknown }).detail;
+    if (typeof detail === "string") return detail;
+    if (Array.isArray(detail)) {
+      // Pydantic v2 validation error → array of {loc, msg, type, ...}
+      const msgs = detail
+        .map((d) => {
+          if (typeof d === "string") return d;
+          if (d && typeof d === "object" && typeof (d as { msg?: unknown }).msg === "string") {
+            const loc = (d as { loc?: unknown[] }).loc;
+            const field =
+              Array.isArray(loc) && loc.length > 1 ? String(loc[loc.length - 1]) : "";
+            return field ? `${field}: ${(d as { msg: string }).msg}` : (d as { msg: string }).msg;
+          }
+          return null;
+        })
+        .filter((m): m is string => Boolean(m));
+      if (msgs.length) return msgs.join("; ");
+    }
+    return fallback;
+  };
+
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (status === "sending") return;
@@ -78,8 +101,10 @@ export default function ContactWidget() {
       if (res.status === 429) {
         const data = await res.json().catch(() => ({}));
         setErrorMsg(
-          data.detail ||
+          extractErrorMessage(
+            data,
             "Too many submissions from your network. Please try again in an hour."
+          )
         );
         setStatus("error");
         return;
@@ -88,8 +113,10 @@ export default function ContactWidget() {
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         setErrorMsg(
-          data.detail ||
+          extractErrorMessage(
+            data,
             "Something went wrong sending your message. Please try again."
+          )
         );
         setStatus("error");
         return;
