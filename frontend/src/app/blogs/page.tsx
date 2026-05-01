@@ -2,16 +2,15 @@
 
 import { PageTitle } from "@/components/custom/pageTitle";
 import React from "react";
+import BrandLogo from "@/components/custom/brandLogo";
 
 const Blogs = () => {
   return (
     <div className="relative container-fluid mx-auto overflow-hidden bg-[#101010] border-l">
       <div className="container mx-auto border-white/[0.1] border-r border-white/[0.1] border-l">
         {/* Header */}
-        <div className="flex flex-col items-center gap-2 mb-2 px-4 border-b border-white/[0.1]">
-          <div className="logo w-[100%] my-10 flex items-center justify-between">
-            <h1 className="text-[24px] text-white">Pivot Safe</h1>
-            <div className="text-white">⎑</div>
+        <div className="flex flex-col items-center gap-2 mb-2 px-4 border-b border-white/[0.1]">          <div className="logo w-[100%] my-10 flex items-center">
+            <BrandLogo size="lg" />
           </div>
         </div>
 

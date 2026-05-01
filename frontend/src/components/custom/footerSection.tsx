@@ -5,14 +5,15 @@ import {
   IconMail,
 } from "@tabler/icons-react";
 import Link from "next/link";
+import BrandLogo from "./brandLogo";
 
 const FooterSection = () => {
   return (
     <footer className="w-full bg-[#101010] border-t border-white/10 py-10 mt-0">
       <div className="custom-container flex flex-col md:flex-row items-center justify-between gap-8">
         {/* Brand */}
-        <div className="flex flex-col items-center md:items-start">
-          <h2 className="text-white text-2xl font-bold mb-2">Pivot Safe</h2>
+        <div className="flex flex-col items-center md:items-start gap-3">
+          <BrandLogo size="md" />
           <p className="text-gray-400 text-sm max-w-xs text-center md:text-left">
             Pivot to Proactive Layer of Security. Protect your organization from
             human cyber-risk with Pivot Safe 360°.

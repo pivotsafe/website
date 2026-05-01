@@ -8,6 +8,7 @@ import {
 } from "framer-motion";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import BrandLogo from "@/components/custom/brandLogo";
 
 export const FloatingNav = ({
   navItems,
@@ -61,10 +62,7 @@ export const FloatingNav = ({
         )}
       >
         <div className="flex items-center justify-between w-full container mx-auto pr-[30px]">
-          <div className="flex row items-center justify-center">
-            <p className="text-white text-[20px] pr-2">⎑</p>
-            <h1 className="text-white"> Pivot Safe</h1>
-          </div>
+          <BrandLogo size="md" />
           <div className="flex row items-center justify-center">
             {navItems.map((navItem: any, idx: number) => (
               <Link

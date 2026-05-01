@@ -24,6 +24,22 @@ Fine-tune the Pivot Safe website (Next.js, source shared via zip `pivot-safe-mas
 
 ## Implemented (Jan 2026)
 
+### Brand mark (new)
+- `src/components/custom/brandLogo.tsx` — reusable left-aligned lockup (gold-accented `⎑` glyph badge + `Pivot`+gold `Safe` wordmark, 3 sizes, optional link). Replaces the previous split layout where the `⎑` glyph drifted to the far-right under `justify-between`.
+- Applied site-wide via mass-replace: hero (`size="lg"`), floating navbar (`size="md"`), footer (`size="md"`), and **all 14 inner pages** (blogs index/slug/loading/not-found/error, cloud_security, ics_scada_security, real-world-skills, penetration_testing, adversary-simulation-red-team-ops, software_security, embedded_iot_security, ai_red_teaming, adversary_simulation).
+
+### Real client logos
+- New PNG/SVG assets dropped in `/app/frontend/public/clients/`: NASA, Comcast, CrowdStrike, Deutsche Telekom, Ferrero, KOHO, Monash, Outbrain, Sezzle, ClickHouse, TrafficJunky.
+- Old placeholder logos (aidbase / lede / marblism / notion / paddle / zerotosaas) deleted.
+- `trustedClientsMovingCards.tsx` rewritten to consume `{src, alt}[]` items.
+- `infinite-moving-client-cards.tsx` rewritten:
+  - Each logo on a soft white chip (160×64, rounded-md, subtle shadow) so PNGs without alpha read clean against PivotSafe's near-black bg.
+  - `useCallback` for `addAnimation` (fixes hook-deps); marquee speed slowed to 90s for "slow"; mask-image gradient eased.
+
+### Resend domain switch
+- `RESEND_FROM` now `PivotSafe <noreply@pivotsafe.com>` (verified domain).
+- New `RESEND_FALLBACK_FROM` env var. `_send_lead_email` now tries the verified domain first and gracefully falls back to the Resend sandbox sender if Resend rejects the primary (e.g. during DNS propagation). Verified live: when `pivotsafe.com` was still propagating, the fallback caught the send and the lead landed in `hello@pivotsafe.com` with `email_status=sent`.
+
 ### Website content (initial pass)
 Hero CTA, Services (Application Security rename + new descriptions for ICS/SCADA, Embedded & IoT, AI Red Teaming), Training (removed Mobile App Hacker's Handbook), Recent Blogs hidden, Footer Home → `/`, Adversary-Sim page (Embedded & IoT section removed), Real-World Skills training modules rewritten to the 6 requested items, Application Security page renames. Logos kept as placeholders.
 

@@ -22,6 +22,7 @@ MONGO_URL = os.environ.get("MONGO_URL")
 DB_NAME = os.environ.get("DB_NAME")
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
 RESEND_FROM = os.environ.get("RESEND_FROM", "onboarding@resend.dev")
+RESEND_FALLBACK_FROM = os.environ.get("RESEND_FALLBACK_FROM", "onboarding@resend.dev")
 CONTACT_TO = os.environ.get("CONTACT_TO", "hello@pivotsafe.com")
 RATE_LIMIT_PER_HOUR = int(os.environ.get("CONTACT_RATE_LIMIT_PER_HOUR", "3"))
 ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "*").split(",")
@@ -119,19 +120,36 @@ async def _send_lead_email(lead: dict) -> Optional[str]:
     if not RESEND_API_KEY:
         logger.warning("RESEND_API_KEY missing — skipping email send for lead %s", lead["id"])
         return None
-    params = {
-        "from": RESEND_FROM,
+    base_params = {
         "to": [CONTACT_TO],
         "reply_to": lead["email"],
         "subject": f"New PivotSafe lead: {lead['name']}",
         "html": _render_lead_email(lead),
     }
-    try:
-        result = await asyncio.to_thread(resend.Emails.send, params)
-        return result.get("id") if isinstance(result, dict) else None
-    except Exception as exc:  # noqa: BLE001
-        logger.exception("Resend send failed for lead %s: %s", lead["id"], exc)
-        return None
+    senders = [RESEND_FROM]
+    if RESEND_FALLBACK_FROM and RESEND_FALLBACK_FROM != RESEND_FROM:
+        senders.append(RESEND_FALLBACK_FROM)
+
+    last_error: Optional[str] = None
+    for idx, sender in enumerate(senders):
+        params = {**base_params, "from": sender}
+        try:
+            result = await asyncio.to_thread(resend.Emails.send, params)
+            email_id = result.get("id") if isinstance(result, dict) else None
+            if idx > 0:
+                logger.warning(
+                    "Resend primary sender %s failed (%s); succeeded via fallback %s for lead %s",
+                    RESEND_FROM, last_error, sender, lead["id"],
+                )
+            return email_id
+        except Exception as exc:  # noqa: BLE001
+            last_error = str(exc)
+            logger.warning(
+                "Resend send via %s failed for lead %s: %s",
+                sender, lead["id"], exc,
+            )
+    logger.error("All Resend senders failed for lead %s: %s", lead["id"], last_error)
+    return None
 
 
 # --- Routes -----------------------------------------------------------------

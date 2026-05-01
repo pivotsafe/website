@@ -5,6 +5,7 @@ import { ShimmerButton } from "../magicui/shimmer-button";
 import OtherShapeThree from "./otherShapeThree";
 import Gradientdiv from "./Gradientdiv";
 import { TrustedClientsMovingCards } from "./trustedClientsMovingCards";
+import BrandLogo from "./brandLogo";
 
 const Hero = () => {
   const openContactPopup = () => {
@@ -16,9 +17,8 @@ const Hero = () => {
   return (
     <section className="relative container mx-auto">
       <div className=" relative h-[calc(90vh)]">
-        <div className="logo w-[100%] my-10 flex items-center justify-between">
-          <h1 className="text-[24px] text-white">Pivot Safe</h1>
-          <div className="text-white">⎑</div>
+        <div className="logo w-[100%] my-10 flex items-center">
+          <BrandLogo size="lg" />
         </div>
         {/* canvas area  */}
         {/* <Gradientdiv className={""} /> */}
