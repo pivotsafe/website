@@ -57,11 +57,11 @@ export const FloatingNav = ({
           duration: 0.2,
         }}
         className={cn(
-          "flex max-w-full min-h-[60px]  fixed top-0 inset-x-0 mx-auto border-b border-white/[0.1]  bg-[#0f0f0f]  shadow-[0px_2px_3px_-1px_rgba(0,0,0,0.1),0px_1px_0px_0px_rgba(25,28,33,0.02),0px_0px_0px_1px_rgba(25,28,33,0.08)] z-[5000] pr-2 pl-8 py-2  items-center justify-center space-x-4",
+          "flex max-w-full min-h-[60px]  fixed top-0 inset-x-0 mx-auto border-b border-white/[0.1]  bg-[#0f0f0f]  shadow-[0px_2px_3px_-1px_rgba(0,0,0,0.1),0px_1px_0px_0px_rgba(25,28,33,0.02),0px_0px_0px_1px_rgba(25,28,33,0.08)] z-[5000] py-2  items-center justify-center space-x-4",
           className
         )}
       >
-        <div className="flex items-center justify-between w-full container mx-auto pr-[30px]">
+        <div className="flex items-center justify-between w-full px-6 sm:px-10 lg:px-16">
           <BrandLogo size="md" />
           <div className="flex row items-center justify-center">
             {navItems.map((navItem: any, idx: number) => (
