@@ -44,6 +44,7 @@ const getFeaturedImageUrl = (item: any): string => {
 };
 
 export const fetchBlogPosts = async (): Promise<BlogPost[]> => {
+  if (!client) return [];
   try {
     const response = await client.getEntries({
       content_type: "blogPost", // You'll need to create this content type in Contentful
@@ -75,6 +76,7 @@ export const fetchBlogPosts = async (): Promise<BlogPost[]> => {
 export const fetchBlogPostBySlug = async (
   slug: string
 ): Promise<BlogPost | null> => {
+  if (!client) return null;
   try {
     const response = await client.getEntries({
       content_type: "blogPost",

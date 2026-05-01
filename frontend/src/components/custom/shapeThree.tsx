@@ -33,7 +33,7 @@ const Cube = () => {
 };
 
 function Buckyball() {
-  const geometry = useMemo(() => new THREE.IcosahedronGeometry(1, 0), [THREE]);
+  const geometry = useMemo(() => new THREE.IcosahedronGeometry(1, 0), []);
   const matcapTexture = useLoader(TextureLoader, texture.matcap);
   const skinTexture = useLoader(TextureLoader, texture.skin);
   const envTexture = useLoader(TextureLoader, texture.env);

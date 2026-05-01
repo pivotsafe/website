@@ -370,7 +370,8 @@ export default function ContactWidget() {
                 </button>
 
                 <p className="text-[11px] text-white/40 text-center">
-                  We&apos;ll only use this to reply to your inquiry. No
+                  By sending, you agree we may store your name, email and
+                  message to reply to your inquiry. We don&apos;t use this for
                   marketing.
                 </p>
               </form>

@@ -1,3 +1,5 @@
+import BrandLogo from "@/components/custom/brandLogo";
+
 export default function Loading() {
   return (
 
