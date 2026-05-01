@@ -42,18 +42,15 @@ const Hero = () => {
                 obstruct it.
               </p>
               <div className="flex items-center w-full">
-                <button
-                  type="button"
+                <ShimmerButton
                   onClick={openContactPopup}
                   data-testid="book-consultation-btn"
-                  className="cursor-pointer"
+                  className="shadow-2xl mt-5"
                 >
-                  <ShimmerButton className="shadow-2xl mt-5">
-                    <span className="whitespace-pre-wrap text-center text-sm font-medium leading-none tracking-tight text-white dark:from-white dark:to-slate-900/10 lg:text-lg">
-                      Book a Free Consultation
-                    </span>
-                  </ShimmerButton>
-                </button>
+                  <span className="whitespace-pre-wrap text-center text-sm font-medium leading-none tracking-tight text-white dark:from-white dark:to-slate-900/10 lg:text-lg">
+                    Book a Free Consultation
+                  </span>
+                </ShimmerButton>
               </div>
             </div>
           </div>
