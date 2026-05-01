@@ -21,7 +21,7 @@ const texture = {
 };
 
 const Buckyball: React.FC = () => {
-  const geometry = useMemo(() => new THREE.IcosahedronGeometry(1.2, 0), []);
+  const geometry = useMemo(() => new THREE.IcosahedronGeometry(1.2, 0), [THREE]);
   const matcapTexture = useLoader(TextureLoader, texture.matcap);
 
   return (
@@ -76,7 +76,7 @@ interface SceneProps {
 
 function Scene(props: SceneProps) {
   const [accent, click] = useReducer((state) => ++state % accents.length, 0);
-  const connectors = useMemo(() => shuffle(accent), [accent]);
+  const connectors = useMemo(() => shuffle(accent), [accent, shuffle]);
 
   return (
     <Canvas
@@ -100,7 +100,7 @@ function Scene(props: SceneProps) {
         <Buckyball />
         <Pointer />
         {connectors.map((props, i) => (
-          <Connector key={i} {...props} />
+          <Connector key={`connector-${props.color}-${i}`} {...props} />
         ))}
       </Physics>
       <EffectComposer multisampling={8}>

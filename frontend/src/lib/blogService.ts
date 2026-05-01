@@ -34,7 +34,9 @@ const getFeaturedImageUrl = (item: any): string => {
       return `https:${item.fields.coverImage.fields.file.url}`;
     }
   } catch (error) {
-    console.warn("Error parsing featured image:", error);
+    if (process.env.NODE_ENV === "development") {
+      console.warn("Error parsing featured image:", error);
+    }
   }
 
   // Return a default image if featuredImage is not available
@@ -62,7 +64,9 @@ export const fetchBlogPosts = async (): Promise<BlogPost[]> => {
       slug: item.fields.slug || `post-${item.sys.id}`,
     }));
   } catch (error) {
-    console.error("Error fetching blog posts:", error);
+    if (process.env.NODE_ENV === "development") {
+      console.error("Error fetching blog posts:", error);
+    }
     // Return empty array for development/testing
     return [];
   }
@@ -97,7 +101,9 @@ export const fetchBlogPostBySlug = async (
       slug: item.fields.slug || `post-${item.sys.id}`,
     };
   } catch (error) {
-    console.error("Error fetching blog post:", error);
+    if (process.env.NODE_ENV === "development") {
+      console.error("Error fetching blog post:", error);
+    }
     return null;
   }
 };

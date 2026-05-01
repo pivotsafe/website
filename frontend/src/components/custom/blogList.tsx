@@ -15,7 +15,7 @@ export const BlogList: React.FC<BlogListProps> = ({
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {[...Array(6)].map((_, index) => (
-          <div key={index} className="animate-pulse space-y-4">
+          <div key={`blog-skeleton-${index}`} className="animate-pulse space-y-4">
             <div className="bg-white/[0.05] h-48 "></div>
             <div className="space-y-2">
               <div className="h-4 bg-white/[0.05] "></div>

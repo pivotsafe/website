@@ -68,7 +68,9 @@ export async function generateStaticParams() {
       slug: post.slug,
     }));
   } catch (error) {
-    console.error("Error generating static params:", error);
+    if (process.env.NODE_ENV === "development") {
+      console.error("Error generating static params:", error);
+    }
     return [];
   }
 }
