@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Navbar } from "@/components/custom/Navbar";
 import FooterSection from "@/components/custom/footerSection";
+import ContactWidget from "@/components/custom/contactWidget";
 import Head from "next/head";
 
 // const inter = Inter({ subsets: ["latin"] });
@@ -27,6 +28,7 @@ export default function RootLayout({
           <Navbar />
         </header>
         {children}
+        <ContactWidget />
         <footer>
           <FooterSection />
         </footer>

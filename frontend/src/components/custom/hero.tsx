@@ -1,3 +1,4 @@
+"use client";
 import React from "react";
 import ShapeThree from "./shapeThree";
 import { ShimmerButton } from "../magicui/shimmer-button";
@@ -6,6 +7,12 @@ import Gradientdiv from "./Gradientdiv";
 import { TrustedClientsMovingCards } from "./trustedClientsMovingCards";
 
 const Hero = () => {
+  const openContactPopup = () => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("open-contact-popup"));
+    }
+  };
+
   return (
     <section className="relative container mx-auto">
       <div className=" relative h-[calc(90vh)]">
@@ -35,16 +42,18 @@ const Hero = () => {
                 obstruct it.
               </p>
               <div className="flex items-center w-full">
-                <a
-                  href="mailto:hello@pivotsafe.com?subject=Book%20a%20Free%20Consultation"
+                <button
+                  type="button"
+                  onClick={openContactPopup}
                   data-testid="book-consultation-btn"
+                  className="cursor-pointer"
                 >
                   <ShimmerButton className="shadow-2xl mt-5">
                     <span className="whitespace-pre-wrap text-center text-sm font-medium leading-none tracking-tight text-white dark:from-white dark:to-slate-900/10 lg:text-lg">
                       Book a Free Consultation
                     </span>
                   </ShimmerButton>
-                </a>
+                </button>
               </div>
             </div>
           </div>

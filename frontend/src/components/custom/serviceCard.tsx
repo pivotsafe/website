@@ -16,9 +16,9 @@ export function ServiceCard({
   link?: string;
 }) {
   return (
-    <a href={link}>
+    <a href={link} className="block">
       <div
-        className={`border border-white/[0.1]  flex flex-col items-start max-w-sm mx-auto  relative h-[26rem] cursor-pointer ${className}`}
+        className={`border border-white/[0.1]  flex flex-col items-start max-w-sm mx-auto  relative h-[30rem] cursor-pointer ${className}`}
       >
         {/* <Icon className="absolute h-6 w-6 -top-3 -left-3 dark:text-white text-black" />
       <Icon className="absolute h-6 w-6 -bottom-3 -left-3 dark:text-white text-black" />
@@ -27,7 +27,7 @@ export function ServiceCard({
 
         <EvervaultCard text={title} icon={icon} />
 
-        <p className="text-white  mt-4 text-sm font-light px-4 ">
+        <p className="text-white mt-2 text-sm font-light px-4 pb-4 leading-relaxed flex-1 overflow-hidden">
           {description}
         </p>
       </div>
