@@ -22,7 +22,7 @@ export function TrustedClientsMovingCards() {
           </h2>
         </div>
         <div
-          className="h-[20rem] rounded-md flex flex-col antialiased bg-transparent items-center justify-center relative overflow-hidden w-full"
+          className="h-[14rem] rounded-md flex flex-col antialiased bg-transparent items-center justify-center relative overflow-hidden w-full"
           data-testid="trusted-clients-marquee"
         >
           <InfiniteMovingClientCards
