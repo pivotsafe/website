@@ -130,13 +130,21 @@ const BlogDetail = async ({ params }: BlogDetailProps) => {
   }
 
   return (
-    <div className="relative container-fluid mx-auto overflow-hidden bg-[#101010] border-l">
+
+
+    <>
+
+
+      <div className="w-full px-6 sm:px-10 lg:px-16 pt-8 pb-2 relative z-20">
+
+
+        <BrandLogo size="lg" />
+
+
+      </div>
+    <div className="relative container-fluid mx-auto overflow-hidden bg-[#101010] border-l  ">
       <div className="container mx-auto border-white/[0.1] border-r border-white/[0.1] border-l">
         {/* Header */}
-        <div className="flex flex-col items-center gap-2 mb-2 px-4 border-b border-white/[0.1]">          <div className="logo w-[100%] my-10 flex items-center">
-            <BrandLogo size="lg" />
-          </div>
-        </div>
 
         {/* Breadcrumb */}
         <div className="flex flex-col items-center gap-2 mb-0 px-4 border-b border-white/[0.1]">
@@ -252,6 +260,7 @@ const BlogDetail = async ({ params }: BlogDetailProps) => {
         </article>
       </div>
     </div>
+  </>
   );
 };
 
