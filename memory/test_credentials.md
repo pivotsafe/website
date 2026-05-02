@@ -11,7 +11,7 @@ TOKEN=$(grep ADMIN_TOKEN /app/backend/.env | cut -d'=' -f2)
 curl -H "Authorization: Bearer $TOKEN" https://<host>/api/contact/_admin/recent
 ```
 
-Current value (preview env): `ps_admin_5bd35ac50fc67ce700b80ef179416b78` (rotated)
+Current value (post pre-deploy rotation, Feb 2026): `ps_admin_861b2d5a24de5551c4d3831937988f279e5202f8`
 
 > Rotate before shipping to production. Generate a new one with:
 > `python -c "import secrets; print('ps_admin_' + secrets.token_hex(16))"`
