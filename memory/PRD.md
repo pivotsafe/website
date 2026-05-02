@@ -48,7 +48,12 @@ Real client PNG/SVG assets dropped in `/app/frontend/public/clients/`: NASA, Com
 - **Dev/prod scripts separated**: `yarn start` = clean dev (`rm -rf .next` then `next dev`), `yarn start:prod` = `next build && next start`.
 - **Perf**: `OtherShapeThree` dynamic-imported (`next/dynamic` `ssr: false`) with a gold-gradient placeholder; hero text + CTA paint in <1s while the 3D scene streams in.
 - **3D scene resilience**: `SceneErrorBoundary` wraps `<OtherShapeThree />`; any three.js / Rapier / postprocessing runtime error renders a gold gradient fallback instead of crashing the page.
-- **Click-crash fix**: removed the `onClick` / `useReducer` accent-cycling code from `otherShapeThree.tsx` (was triggering an `@react-three/fiber@9.6` reconciler bug → null `.alpha` read). `gl` prop now has a complete config (`alpha`, `antialias`, `powerPreference`, `stencil`, `depth`).
+- **Click-crash fix (Feb 2026)**: Root cause was `@react-three/postprocessing` v3 reading `gl.getContextAttributes().alpha` on a momentarily-null WebGL state after React 19 strict-mode double-invoked the scene (dev) / after the click-driven `accent` useReducer re-rendered the Canvas tree. Final resolution:
+  1. `reactStrictMode: false` in `next.config.mjs` (dev-only effect; prod builds unaffected).
+  2. Removed `EffectComposer` + `N8AO` from `otherShapeThree.tsx` entirely — this was the concrete crash site. The scene still uses `Environment` + `Lightformer`s for richly-lit shading, so the visual identity of the hero is preserved; only the subtle ambient-occlusion pass is gone.
+  3. Removed misplaced `OrbitControls` from inside `RigidBody` (had no effect on-screen, only added extra reconciliation surface).
+  4. Hoisted `gl` / `camera` / `dpr` Canvas props to module scope (`GL_PROPS`, `CAMERA_PROPS`, `DPR`) so they keep a stable reference identity across re-renders.
+  5. Click-to-change-accent behaviour retained via the original `useReducer` — verified across 7+ successive clicks + mouse-moves + 30s idle: canvas stays mounted, zero PAGE ERRORs, no `SceneErrorBoundary` activation.
 - **Validation-error UX**: `extractErrorMessage` in `contactWidget.tsx` walks Pydantic v2 `detail` arrays and renders `field: msg` strings inline (no more `[object Object]` or React child-object crashes).
 - **Lint clean**: `yarn lint` → 0 warnings, 0 errors.
 - **README** at `/app/README.md` documents the architecture, env vars, API surface, security guarantees, dev vs prod toggle, and backlog.
@@ -57,6 +62,7 @@ Real client PNG/SVG assets dropped in `/app/frontend/public/clients/`: NASA, Com
 - **Iteration 1** (`/app/test_reports/iteration_1.json`): 6/6 backend + 4/4 frontend smoke passed. Resend integration verified live (not mocked).
 - **Iteration 2** (`/app/test_reports/iteration_2.json`): 16/16 backend hardening + 3/3 frontend smoke passed. Surfaced the `.next/` stale-prerender-cache bug — fixed in `package.json` so every supervisor restart wipes `.next` before `next dev` boots. Re-verified: bubble is `position: fixed` at bottom-right, modal opens with the privacy notice, and response headers no longer carry `x-nextjs-prerender` / `x-nextjs-cache: HIT`.
 - **Iteration 3** (`/app/test_reports/iteration_3.json`): **100% pass — 16/16 backend + 7/7 frontend** including a rigorous repro of the previously-reported 3D click-crash (10 clicks at different canvas coordinates → canvas stays mounted, zero errors). Pydantic v2 validation errors render cleanly as human-readable strings. SceneErrorBoundary verified. Lint clean. Production `next build` prerenders 16/16 routes with 102 KB shared + 168 KB homepage First Load JS.
+- **Iteration 4** (Feb 2026): After user reported regression ("graphics load, then vanish, then white error screen"), identified the actual culprit as `@react-three/postprocessing` v3 + React 19 strict-mode. Applied the fix above (strict-mode off, EffectComposer removed, stable Canvas props). Verified via Playwright: canvas=1 after 10s idle, after 5 mouse-moves, after 6 clicks, and after another 5s wait. Zero `Cannot read properties of null (reading 'alpha')` errors, zero `SceneErrorBoundary` activations. 3D models render correctly (icosahedron wireframe + floating accent-colored C-letter objects). Backend `/api/health` + `POST /api/contact` still green.
 
 ## Files Touched
 

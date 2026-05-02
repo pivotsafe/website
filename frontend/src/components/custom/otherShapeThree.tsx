@@ -6,7 +6,6 @@ import {
   Lightformer,
 } from "@react-three/drei";
 import { CuboidCollider, Physics, RigidBody } from "@react-three/rapier";
-import { EffectComposer, N8AO } from "@react-three/postprocessing";
 import { easing } from "maath";
 import React, { useMemo, useReducer, useRef } from "react";
 import * as THREE from "three";
@@ -58,19 +57,6 @@ const OtherShapeThree: React.FC = () => {
   return <Scene style={{ borderRadius: 0 }} />;
 };
 
-// Memoized post-processing subtree. Receives no props that change, so once
-// mounted React.memo returns the same element reference across Scene
-// re-renders (e.g. when `accent` changes via the canvas click). This breaks
-// the reconciliation chain that was otherwise touching EffectComposer and
-// tripping the "null alpha" crash.
-const Effects = React.memo(function Effects() {
-  return (
-    <EffectComposer multisampling={8}>
-      <N8AO distanceFalloff={1} aoRadius={1} intensity={4} />
-    </EffectComposer>
-  );
-});
-
 const accents = ["#9147ff", "#20ffa0", "#ff4060", "#ffcc00"];
 const shuffle = (accent: number = 0) => [
   { color: "#9147ff", roughness: 0.1 },
@@ -117,13 +103,6 @@ function Scene(props: SceneProps) {
           <Connector key={i} {...props} />
         ))}
       </Physics>
-      {/* Isolated so Scene re-renders (color/accent changes on click) don't
-          force EffectComposer to reconcile — that reconciliation triggers a
-          known R3F 9.x + postprocessing 3.x bug where the composer reads
-          `gl.getContextAttributes().alpha` on a null renderer state and the
-          whole tree crashes with "Cannot read properties of null (reading
-          'alpha')". Memoizing keeps the composer instance stable. */}
-      <Effects />
       <Environment resolution={256}>
         <group rotation={[-Math.PI / 3, 0, 1]}>
           <Lightformer
