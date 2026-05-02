@@ -83,7 +83,13 @@ function Scene(props: SceneProps) {
       onClick={click}
       shadows
       dpr={[1, 1.5]}
-      gl={{ antialias: false }}
+      gl={{
+        alpha: true,
+        antialias: false,
+        powerPreference: "high-performance",
+        stencil: false,
+        depth: true,
+      }}
       camera={{ position: [0, 0, 15], fov: 35, near: 1, far: 20 }}
       {...props}
     >
