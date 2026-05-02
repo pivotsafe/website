@@ -125,7 +125,7 @@ class TestCORS:
 # --- Happy path with user_agent + persistence ------------------------------
 class TestHappyPathPersistence:
     def test_lead_persisted_with_full_metadata(self, api):
-        ip = "198.51.100.10"  # fresh IP for iteration 2
+        ip = "198.51.100.31"  # fresh IP for iteration 3
         long_ua = "TEST_UA_" + ("x" * 700)  # >500 chars to verify capping
         payload = {
             "name": "TEST_iter2_HappyPath",
@@ -166,7 +166,7 @@ class TestHappyPathPersistence:
 # --- Honeypot rate-limit rollback -----------------------------------------
 class TestHoneypotRateLimitRollback:
     def test_honeypot_does_not_consume_rate_limit(self, api):
-        ip = "198.51.100.55"  # fresh IP
+        ip = "198.51.100.33"  # fresh IP iter3
 
         # Spam honeypot way more than RATE_LIMIT_PER_HOUR (=3)
         for i in range(6):
@@ -253,7 +253,7 @@ class TestValidation:
 # --- Rate limit on fresh IP -----------------------------------------------
 class TestRateLimitFreshIP:
     def test_rate_limit_after_three_valid(self, api):
-        ip = "198.51.100.200"  # NOT used in iteration 1
+        ip = "203.0.113.77"  # fresh IP for iter3 rate-limit
         for i in range(3):
             r = api.post(
                 f"{BASE_URL}/api/contact",
