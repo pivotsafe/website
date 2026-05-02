@@ -1,0 +1,46 @@
+{
+  "summary": "Iteration 3 final production-readiness regression: 16/16 backend hardening pytest cases PASS and 7/7 frontend smoke flows PASS including the previously-reported 3D click-crash scenario. All review_request items verified end-to-end. The 3D hero click-crash bug is gone — canvas absorbed 10 clicks across different positions, stayed mounted, page title preserved, zero alpha/three/webgl/pageerror console entries. Pydantic v2 validation error renders cleanly in UI as 'message: String should have at least 5 characters' (no raw object leak). ALLOWED_ORIGINS correctly includes preview URL so browser tests work against ingress. robots.txt served (with Cloudflare-prepended bot policy; our User-agent:* + Sitemap: present). sitemap.xml returns valid XML with 11 pivotsafe.com URLs incl. homepage. Home <title> / og:title / twitter:card present. /docs /redoc /openapi.json all 404. Admin bearer auth: 401 without/wrong, 200 with correct ADMIN_TOKEN from /app/backend/.env. Honeypot returns id=honeypot, does NOT persist a lead, does NOT burn rate-limit slot (6x honeypot + 1 legit submit from same IP = 201, not 429). Rate limit: 3 valid from fresh IP 203.0.113.77 succeed, 4th returns 429. CORS allowlist verified against localhost:8001 (preview ingress masks headers publicly — known infra limitation, not a code bug). Resend is live and emails actually fired.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "CORS preflight (public URL)", "issue": "Preview ingress (Cloudflare) overrides CORS headers to '*' regardless of Origin. Backend itself enforces the allowlist correctly — verified directly against http://localhost:8001. Not a regression; production at pivotsafe.com will behave as designed."},
+      {"endpoint": "/robots.txt (public URL)", "issue": "Cloudflare prepends its own managed bot-policy block + duplicate 'User-agent: *' in front of our static /app/frontend/public/robots.txt content. Our required User-agent:* and Sitemap: lines ARE present at the end of the response, so requirements pass. Acceptable CF-managed behavior."},
+      {"endpoint": "/api/contact rate-limiter", "issue": "Still an in-process per-IP deque — single-process only. Not a regression; documented in iter1/iter2 action items."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Inner page /software_security", "issues": ["Brand logo lockup flush top-left confirmed, breadcrumbs styled, readable contrast, no layout issues visible."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_hardening.py",
+    "/app/backend/tests/test_contact_api.py",
+    "/app/test_reports/pytest/iteration_3_results.xml"
+  ],
+  "action_items": [
+    "No blockers for production release. Carry-over nice-to-haves from iter1/iter2: (1) migrate rate-limiter from in-process deque to Redis/Mongo for multi-worker deployments, (2) verify CORS headers under the production pivotsafe.com domain (preview ingress masks them), (3) ensure deploy pipeline wipes /app/frontend/.next before next dev/next start to prevent the stale-prerender-cache regression documented in iter2, (4) consider resolving the pre-existing iter1 nested-button hydration warning in hero.tsx."
+  ],
+  "critical_code_review_comments": [
+    "server.py remains clean and production-grade: fail-closed admin dep (404 when ADMIN_TOKEN unset, 401 on missing/bad bearer), docs/redoc/openapi disabled, indexes idempotent, honeypot rollback verified, persistence+email failures handled independently, 503 only fires when BOTH fail, HTML-escaped email template.",
+    "contactWidget.tsx extractErrorMessage correctly handles Pydantic v2 detail arrays — UI rendered 'message: String should have at least 5 characters' (string, not object). No more [object Object] render crash.",
+    "otherShapeThree.tsx — confirmed NO onClick handler anywhere; canvas clicks do not dispatch any React state update, which was the root cause of the previous crash loop. gl config has alpha/antialias/powerPreference set. SceneErrorBoundary wraps the scene and would render data-testid=scene-error-fallback if anything threw — it did not trigger (fallback_count=0 after 10 clicks).",
+    "floating-navbar.tsx flush-left spacing (px-6 sm:px-10 lg:px-16) renders correctly; brand logo appears top-left on homepage and inner pages.",
+    "sitemap.ts emits 11 valid <url> entries including https://pivotsafe.com/ homepage with weekly changefreq priority 1.",
+    "Mongo _id is correctly excluded from admin endpoint response via projection {\"_id\": 0}."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_hardening.py (refreshed X-Forwarded-For IPs to 198.51.100.31, 198.51.100.33, 203.0.113.77 — fresh for iter3)",
+    "/app/test_reports/pytest/iteration_3_results.xml (NEW — pytest junit output, 16/16 pass)",
+    "/app/test_reports/iteration_3.json (NEW — this report)"
+  ],
+  "success_rate": {"backend": "100% (16/16 pytest)", "frontend": "100% (7/7 smoke flows incl. 3D click-crash repro)"},
+  "test_credentials": "ADMIN_TOKEN loaded dynamically from /app/backend/.env via python-dotenv — not hardcoded, not modified.",
+  "seed_data_creation": "Iter3 newly inserted TEST_iter3_* leads via /api/contact happy-path test + one Playwright-driven valid submission from browser. Resend live-sent ~2 real emails to hello@pivotsafe.com. Rate-limit IPs newly burned this iteration: 198.51.100.31 (1/3), 198.51.100.33 (1/3 after 6x honeypot rollback), 203.0.113.77 (4/3 — BURNED for ~1 hour). Validation-only IPs (no rate-limit consumed): 198.51.100.71/72/73.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Full iter3 regression is green. The 3D click-crash is fixed and verified via automated Playwright repro (10 clicks at different coords on canvas). If future iterations re-test rate-limit, AVOID IPs 198.51.100.10/.31/.33/.55/.71/.72/.73/.200 and 203.0.113.77 (burned across iters 1-3). CORS must be validated against http://localhost:8001 — public preview ingress rewrites headers. If a 'stale CSS / bubble not fixed' issue reappears, run: rm -rf /app/frontend/.next && supervisorctl restart frontend (documented iter2 RCA).",
+  "rca_of_the_issue": "N/A — no unresolved issues this iteration. Historical context preserved: iter2 documented CSS-404 stale-cache bug (mitigated) and previous 3D click-crash (fixed by removing onClick from otherShapeThree and wrapping in SceneErrorBoundary; verified cleanly this iteration)."
+}

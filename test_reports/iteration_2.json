@@ -1,0 +1,53 @@
+{
+  "summary": "Iteration 2 production-hardening validation: 16/16 backend hardening pytest cases passed (health, admin bearer auth, docs disabled, CORS allowlist, lead persistence with user_agent capping, honeypot rate-limit rollback, Pydantic v2 validation, fresh-IP rate limit, Mongo indexes). 3/3 frontend smoke tests passed (SEO/OG/Twitter meta, contact bubble + privacy notice, full submit -> success state) AFTER clearing a stale .next cache that was breaking CSS in the preview environment. /robots.txt and /sitemap.xml both 200; sitemap has 11 URLs.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "CORS preflight", "issue": "The preview ingress (Cloudflare) overrides the backend's CORS headers and returns 'access-control-allow-origin: *' regardless of Origin. The backend itself enforces the allowlist correctly (verified via localhost:8001) but tests against the public URL cannot validate this because of the proxy. In production behind pivotsafe.com this should work as designed."},
+      {"endpoint": "/robots.txt", "issue": "Cloudflare prepends its own managed bot policy ('Content-Signal' block) and a duplicate 'User-agent: *' section in front of our static /app/frontend/public/robots.txt content. Our file content (User-agent: *, Disallow: /api/, Disallow: /_next/, Sitemap: ...) IS appended at the end so requirements pass, but the served file is not byte-identical to the source. Acceptable behavior for Cloudflare-managed sites."},
+      {"endpoint": "/api/contact (rate limiter)", "issue": "Pre-existing iter1 finding still applies — in-process deque, single-process only. Not a regression."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Next.js dev server", "issue": "CRITICAL (initially): /_next/static/css/app/layout.css returned 404 because the dev server was serving stale prerendered HTML from a previous `next build` run. Tailwind utility classes (.fixed, .bg-*, etc.) had ZERO rules at runtime, so the contact bubble lost `position: fixed` and rendered at y=4359 in document flow, the modal overlay had no styling, and the entire site looked broken. Mitigated by clearing /app/frontend/.next and restarting frontend supervisor — after that the bubble computed position is 'fixed' at (1840, 1000) and all flows work. Main agent should ensure: either run `next build && next start` cleanly OR ensure dev cache is wiped before deploying. The HTML response carries x-nextjs-prerender:1 + x-nextjs-cache:HIT which leaks prod prerender assets into a dev runtime.", "selector": "[data-testid=\"contact-bubble-btn\"]", "priority": "HIGH"},
+      {"component": "Hero / book-consultation-btn", "issue": "Pre-existing iter1 nested-button hydration error not retested but still applies.", "selector": "[data-testid=\"book-consultation-btn\"]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Contact modal success state", "issues": ["Looks clean — green check, 'Message sent' heading, hello@pivotsafe.com link styled in brand gold, Close button present. No contrast issues."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_hardening.py",
+    "/app/backend/tests/test_contact_api.py",
+    "/app/test_reports/pytest/iteration_2_results.xml"
+  ],
+  "action_items": [
+    "FRONTEND HOSTING: ensure the dev/prod boundary is clean. The currently-deployed `yarn start` script runs `next dev` but the .next/ cache contained stale `next build` output that referenced /_next/static/css/app/layout.css which only exists in production builds. Either (a) make `yarn start` run `next start` against a real build, or (b) ensure deploy wipes .next before `next dev` boots. Already mitigated by clearing .next during this test pass.",
+    "Verify production CORS in actual prod domain (preview ingress masks it).",
+    "Carry over iter1 action items: nested-button fix in hero.tsx; move rate limiter to Redis/Mongo for production; consider trusting only right-most XFF hop."
+  ],
+  "critical_code_review_comments": [
+    "server.py hardening is correct — admin bearer dep is fail-closed (404 when ADMIN_TOKEN unset, 401 on missing/bad bearer), docs/redoc/openapi disabled via FastAPI kwargs, indexes ensured in lifespan with try/except logging, _release_rate_limit pops the bucket slot when honeypot trips (verified: spamming honeypot 6x then submitting legit lead from same IP returns 201 not 429).",
+    "_render_lead_email correctly HTML-escapes all user-controlled fields (name/email/company/message/created_at/id/ip).",
+    "CORS allowlist works on the backend (localhost:8001 verified): allowed origin echoed exactly, disallowed origin yields 400 'Disallowed CORS origin' with no ACAO header.",
+    "MongoDB indexes verified on contact_leads: idx_lead_id (unique), idx_lead_created_desc, idx_ip_created, idx_email_status — all present.",
+    "user_agent stored on lead is correctly capped at 500 chars (verified by sending a 700-char UA and confirming match['user_agent'] length <= 500).",
+    "Lead-and-email try/except branches: persistence + email failures are independent; the 503 only fires when BOTH fail. Verified persisted=true & email_status='sent' on happy path.",
+    "package.json `start` script is `next dev` — production should use `next start` after `next build`. This is the root cause of the CSS 404 issue."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_hardening.py (NEW — 16 hardening tests)",
+    "/app/test_reports/pytest/iteration_2_results.xml (NEW — junit output)",
+    "/app/test_reports/iteration_2.json (NEW — this report)",
+    "Cleared /app/frontend/.next cache & restarted frontend supervisor to fix stale-CSS regression"
+  ],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "100% (3/3 smoke flows after .next reset)"},
+  "test_credentials": "ADMIN_TOKEN read dynamically from /app/backend/.env (key: ADMIN_TOKEN). Not hardcoded, not modified.",
+  "seed_data_creation": "Inserted ~6 TEST_iter2_*-prefixed leads via /api/contact and /admin/recent verifications. Resend live-sent ~6 emails to hello@pivotsafe.com. Rate-limit IPs newly burned this iteration: 198.51.100.10, 198.51.100.55, 198.51.100.200 (4/3 — burned for ~1 hour).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 16 hardening backend tests + 3 frontend smoke flows pass. Critical caveat: if you see CSS 404s or bubble appearing in document flow, immediately rm -rf /app/frontend/.next && supervisorctl restart frontend — there is a stale-prerender-cache race between `yarn build` and `next dev`. Mongo indexes on contact_leads are confirmed. ADMIN_TOKEN bearer flow works. Rate-limit IPs newly burned: 198.51.100.10/.55/.200 — pick fresh IPs for any new rate-limit test. Resend integration is real (sandbox). The /robots.txt response is Cloudflare-managed but contains required content at the end. CORS validation must be done against localhost:8001 (preview ingress overrides headers).",
+  "rca_of_the_issue": "RCA for the CSS-404 stale-cache bug: the frontend is started via `yarn start` which package.json maps to `next dev -p 3000 -H 0.0.0.0`. At some earlier point `yarn build` was run (per iter1 notes: 'frontend production build was verified locally'), populating /app/frontend/.next with prerendered HTML referencing prod-style asset paths (/_next/static/css/app/layout.css). When `next dev` later started against the same .next dir, it served the stale prerendered HTML (HTTP responses included `x-nextjs-prerender: 1, x-nextjs-cache: HIT`) but the prod CSS paths were never built in dev mode, so the CSS link 404'd. Result: 0 Tailwind rules at runtime, .fixed didn't apply, contact bubble flowed to bottom of page (y=4359), and clicking it appeared to do nothing visible (modal opened off-screen / unstyled). Mitigation applied: `rm -rf /app/frontend/.next && supervisorctl restart frontend`. Permanent fix recommended: switch `start` script to `next start` after `next build`, or add a pre-start cache-clear hook."
+}

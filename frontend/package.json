@@ -1,0 +1,49 @@
+{
+  "name": "pivot-safe",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3000 -H 0.0.0.0",
+    "build": "next build",
+    "start": "rm -rf .next && next dev -p 3000 -H 0.0.0.0",
+    "start:prod": "next build && next start -p 3000 -H 0.0.0.0",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@contentful/rich-text-react-renderer": "^16.1.0",
+    "@contentful/rich-text-types": "^17.1.0",
+    "@radix-ui/react-slot": "^1.2.3",
+    "@react-three/drei": "^10.0.0",
+    "@react-three/fiber": "^9.0.4",
+    "@react-three/postprocessing": "^3.0.4",
+    "@react-three/rapier": "^1.5.0",
+    "@tabler/icons-react": "^3.30.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "contentful": "^11.7.15",
+    "framer-motion": "^12.4.7",
+    "lucide-react": "^0.475.0",
+    "maath": "^0.10.8",
+    "motion": "^12.18.1",
+    "next": "^15.1.7",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-icons": "^5.5.0",
+    "tabler": "^1.0.0",
+    "tailwind-merge": "^3.0.1",
+    "tailwindcss-animate": "^1.0.7",
+    "three": "^0.173.0",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "autoprefixer": "^10.0.1",
+    "eslint": "^8",
+    "eslint-config-next": "14.1.0",
+    "postcss": "^8",
+    "tailwindcss": "^3.3.0",
+    "typescript": "^5"
+  }
+}

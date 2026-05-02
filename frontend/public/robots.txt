@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# Hide internal/admin paths from indexing.
+Disallow: /api/
+Disallow: /_next/
+
+Sitemap: https://pivotsafe.com/sitemap.xml
