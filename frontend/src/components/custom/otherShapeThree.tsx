@@ -9,7 +9,7 @@ import {
 import { CuboidCollider, Physics, RigidBody } from "@react-three/rapier";
 import { EffectComposer, N8AO } from "@react-three/postprocessing";
 import { easing } from "maath";
-import React, { useMemo, useRef } from "react";
+import React, { useMemo, useReducer, useRef } from "react";
 import * as THREE from "three";
 import { TextureLoader } from "three";
 
@@ -74,19 +74,19 @@ interface SceneProps {
   style: React.CSSProperties;
 }
 
-/**
- * Static-accent version: the click-to-cycle accent feature was removed
- * because it interacted badly with @react-three/fiber 9.6.x — any state
- * update on the Scene component caused the Canvas reconciler to read
- * `gl.alpha` off a null object and crash. The hero scene is purely decorative
- * so a fixed accent gives the same visual impact with zero runtime risk.
- */
-const STATIC_ACCENT = 0;
-function SceneContents() {
-  const connectors = useMemo(() => shuffle(STATIC_ACCENT), []);
+function Scene(props: SceneProps) {
+  const [accent, click] = useReducer((state) => ++state % accents.length, 0);
+  const connectors = useMemo(() => shuffle(accent), [accent]);
 
   return (
-    <>
+    <Canvas
+      onClick={click}
+      shadows
+      dpr={[1, 1.5]}
+      gl={{ antialias: false }}
+      camera={{ position: [0, 0, 15], fov: 35, near: 1, far: 20 }}
+      {...props}
+    >
       <ambientLight intensity={0.4} />
       <spotLight
         position={[10, 10, 10]}
@@ -95,11 +95,12 @@ function SceneContents() {
         intensity={1}
         castShadow
       />
+
       <Physics gravity={[0, 0, 0]}>
         <Buckyball />
         <Pointer />
         {connectors.map((props, i) => (
-          <Connector key={`connector-${props.color}-${i}`} {...props} />
+          <Connector key={i} {...props} />
         ))}
       </Physics>
       <EffectComposer multisampling={8}>
@@ -137,26 +138,6 @@ function SceneContents() {
           />
         </group>
       </Environment>
-    </>
-  );
-}
-
-function Scene(props: SceneProps) {
-  return (
-    <Canvas
-      shadows
-      dpr={[1, 1.5]}
-      gl={{
-        alpha: true,
-        antialias: false,
-        powerPreference: "high-performance",
-        stencil: false,
-        depth: true,
-      }}
-      camera={{ position: [0, 0, 15], fov: 35, near: 1, far: 20 }}
-      {...props}
-    >
-      <SceneContents />
     </Canvas>
   );
 }
