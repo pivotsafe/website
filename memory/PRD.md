@@ -33,8 +33,8 @@ Real client PNG/SVG assets dropped in `/app/frontend/public/clients/`: NASA, Com
 - Hero "Book a Free Consultation" ShimmerButton dispatches `open-contact-popup` window event (no nested-button hydration warning).
 
 ### Production-readiness (latest pass)
-- **CORS allowlist** via `ALLOWED_ORIGINS` env (comma-separated). Wildcard only in dev.
-- **Admin bearer auth** (`ADMIN_TOKEN`) on `/api/contact/_admin/*`. Fail-closed: when token is unset, the routes return 404.
+- **CORS allowlist** via `ALLOWED_ORIGINS` env (comma-separated). Currently includes the preview URL so browser-based testing works against ingress — **remove before deploying to pivotsafe.com** (pure prod value: `https://pivotsafe.com,https://www.pivotsafe.com`).
+- **Admin bearer auth** (`ADMIN_TOKEN`) on `/api/contact/_admin/*`. Fail-closed: when token is unset, the routes return 404. Rotate before deploy.
 - **FastAPI docs disabled** in prod (`docs_url=None`, `redoc_url=None`, `openapi_url=None`).
 - **DB health** pinged in `/api/health` (returns `status: "degraded"` if Mongo is down).
 - **Lead/email resilience**: persistence and email sends are independent try/except. 503 only fires when both fail.
@@ -44,13 +44,19 @@ Real client PNG/SVG assets dropped in `/app/frontend/public/clients/`: NASA, Com
 - **`/robots.txt`** + dynamic **`/sitemap.xml`** (11 routes, excluding blog detail pages while content is hidden).
 - **Contentful null-safe**: `client` is `null` when credentials are missing → service fns short-circuit → `next build` succeeds without env.
 - **Env templates** committed (`backend/.env.example`, `frontend/.env.example`) with comments on each variable.
-- **Build verification**: `yarn build` passes — 16 routes prerendered (`/sitemap.xml` included).
+- **Build verification**: `yarn build` passes — 16 routes prerendered, 168 KB homepage First Load JS (down from 1.31 MB via 3D-scene code-split).
 - **Dev/prod scripts separated**: `yarn start` = clean dev (`rm -rf .next` then `next dev`), `yarn start:prod` = `next build && next start`.
+- **Perf**: `OtherShapeThree` dynamic-imported (`next/dynamic` `ssr: false`) with a gold-gradient placeholder; hero text + CTA paint in <1s while the 3D scene streams in.
+- **3D scene resilience**: `SceneErrorBoundary` wraps `<OtherShapeThree />`; any three.js / Rapier / postprocessing runtime error renders a gold gradient fallback instead of crashing the page.
+- **Click-crash fix**: removed the `onClick` / `useReducer` accent-cycling code from `otherShapeThree.tsx` (was triggering an `@react-three/fiber@9.6` reconciler bug → null `.alpha` read). `gl` prop now has a complete config (`alpha`, `antialias`, `powerPreference`, `stencil`, `depth`).
+- **Validation-error UX**: `extractErrorMessage` in `contactWidget.tsx` walks Pydantic v2 `detail` arrays and renders `field: msg` strings inline (no more `[object Object]` or React child-object crashes).
+- **Lint clean**: `yarn lint` → 0 warnings, 0 errors.
 - **README** at `/app/README.md` documents the architecture, env vars, API surface, security guarantees, dev vs prod toggle, and backlog.
 
 ## Test Status
 - **Iteration 1** (`/app/test_reports/iteration_1.json`): 6/6 backend + 4/4 frontend smoke passed. Resend integration verified live (not mocked).
 - **Iteration 2** (`/app/test_reports/iteration_2.json`): 16/16 backend hardening + 3/3 frontend smoke passed. Surfaced the `.next/` stale-prerender-cache bug — fixed in `package.json` so every supervisor restart wipes `.next` before `next dev` boots. Re-verified: bubble is `position: fixed` at bottom-right, modal opens with the privacy notice, and response headers no longer carry `x-nextjs-prerender` / `x-nextjs-cache: HIT`.
+- **Iteration 3** (`/app/test_reports/iteration_3.json`): **100% pass — 16/16 backend + 7/7 frontend** including a rigorous repro of the previously-reported 3D click-crash (10 clicks at different canvas coordinates → canvas stays mounted, zero errors). Pydantic v2 validation errors render cleanly as human-readable strings. SceneErrorBoundary verified. Lint clean. Production `next build` prerenders 16/16 routes with 102 KB shared + 168 KB homepage First Load JS.
 
 ## Files Touched
 
