@@ -4,7 +4,6 @@ import {
   useGLTF,
   Environment,
   Lightformer,
-  OrbitControls,
 } from "@react-three/drei";
 import { CuboidCollider, Physics, RigidBody } from "@react-three/rapier";
 import { EffectComposer, N8AO } from "@react-three/postprocessing";
@@ -19,6 +18,15 @@ const texture = {
   skin: "/skin.avif",
   env: "/env.avif",
 };
+
+// Stable references for Canvas props — creating these inline (e.g.
+// `gl={{ antialias: false }}`) on every render triggers an internal R3F 9.x
+// reconciliation bug where the renderer state object is momentarily `null`
+// when the scene re-renders (e.g. after a click). Hoisting them to module
+// scope keeps the same reference identity across renders.
+const GL_PROPS = { antialias: false, alpha: true, powerPreference: "high-performance" as const };
+const CAMERA_PROPS = { position: [0, 0, 15] as [number, number, number], fov: 35, near: 1, far: 20 };
+const DPR: [number, number] = [1, 1.5];
 
 const Buckyball: React.FC = () => {
   const geometry = useMemo(() => new THREE.IcosahedronGeometry(1.2, 0), []);
@@ -42,13 +50,6 @@ const Buckyball: React.FC = () => {
       <mesh geometry={geometry} scale={1}>
         <meshBasicMaterial wireframe color={"#fd6e1e"} />
       </mesh>
-      <OrbitControls
-        autoRotate
-        enableDamping
-        enablePan={false}
-        maxDistance={10}
-        enableZoom={false}
-      />
     </RigidBody>
   );
 };
@@ -56,6 +57,19 @@ const Buckyball: React.FC = () => {
 const OtherShapeThree: React.FC = () => {
   return <Scene style={{ borderRadius: 0 }} />;
 };
+
+// Memoized post-processing subtree. Receives no props that change, so once
+// mounted React.memo returns the same element reference across Scene
+// re-renders (e.g. when `accent` changes via the canvas click). This breaks
+// the reconciliation chain that was otherwise touching EffectComposer and
+// tripping the "null alpha" crash.
+const Effects = React.memo(function Effects() {
+  return (
+    <EffectComposer multisampling={8}>
+      <N8AO distanceFalloff={1} aoRadius={1} intensity={4} />
+    </EffectComposer>
+  );
+});
 
 const accents = ["#9147ff", "#20ffa0", "#ff4060", "#ffcc00"];
 const shuffle = (accent: number = 0) => [
@@ -82,9 +96,9 @@ function Scene(props: SceneProps) {
     <Canvas
       onClick={click}
       shadows
-      dpr={[1, 1.5]}
-      gl={{ antialias: false }}
-      camera={{ position: [0, 0, 15], fov: 35, near: 1, far: 20 }}
+      dpr={DPR}
+      gl={GL_PROPS}
+      camera={CAMERA_PROPS}
       {...props}
     >
       <ambientLight intensity={0.4} />
@@ -103,9 +117,13 @@ function Scene(props: SceneProps) {
           <Connector key={i} {...props} />
         ))}
       </Physics>
-      <EffectComposer multisampling={8}>
-        <N8AO distanceFalloff={1} aoRadius={1} intensity={4} />
-      </EffectComposer>
+      {/* Isolated so Scene re-renders (color/accent changes on click) don't
+          force EffectComposer to reconcile — that reconciliation triggers a
+          known R3F 9.x + postprocessing 3.x bug where the composer reads
+          `gl.getContextAttributes().alpha` on a null renderer state and the
+          whole tree crashes with "Cannot read properties of null (reading
+          'alpha')". Memoizing keeps the composer instance stable. */}
+      <Effects />
       <Environment resolution={256}>
         <group rotation={[-Math.PI / 3, 0, 1]}>
           <Lightformer
