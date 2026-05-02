@@ -1,98 +1,88 @@
-# Pivot Safe – Website + Contact API PRD
+# PivotSafe – Website + Contact API PRD
 
 ## Original Problem Statement
-Fine-tune the Pivot Safe website (Next.js, source shared via zip `pivot-safe-master.zip`). Apply content/navigation updates, then upgrade the contact CTA from a `mailto:` link to a real API-backed contact form with persistence, transactional email, success state, and spam protection.
+Fine-tune the Pivot Safe website (Next.js, source shared via zip `pivot-safe-master.zip`), then harden it for production. Applied content/navigation updates, an API-backed contact form with persistence + transactional email, spam protection, brand/logo work, and a full production-readiness pass.
 
 ## Architecture / Tech Stack
-- **Frontend** (`/app/frontend`): Next.js 15 (App Router) + React 19 + TypeScript + Tailwind + Framer Motion + @tabler/icons + lucide-react. Dev server: `next dev -p 3000 -H 0.0.0.0` via supervisor `frontend` program (port 3000).
-- **Backend** (`/app/backend`): FastAPI 0.110 + Motor (async MongoDB) + Resend SDK 2.29 + Pydantic v2. Run by supervisor `backend` program: `uvicorn server:app --host 0.0.0.0 --port 8001 --workers 1 --reload`.
-- **DB**: Local MongoDB at `mongodb://localhost:27017`, db `pivotsafe`, collection `contact_leads`.
-- **Email**: Resend transactional API. From: `PivotSafe <onboarding@resend.dev>` (sandbox until `pivotsafe.com` DNS is verified). To: `hello@pivotsafe.com`.
+- **Frontend** (`/app/frontend`): Next.js 15 (App Router), React 19, TS, Tailwind, R3F (three.js). Supervisor `frontend` → port 3000. `yarn start` runs `rm -rf .next && next dev -p 3000 -H 0.0.0.0` to avoid stale-prerender-cache collisions.
+- **Backend** (`/app/backend`): FastAPI 0.110, Motor (async MongoDB), Resend 2.29, Pydantic v2, python-dotenv. Supervisor `backend` → port 8001.
+- **DB**: local Mongo, db `pivotsafe`, collection `contact_leads` with indexes `idx_lead_id (unique)`, `idx_lead_created_desc`, `idx_ip_created`, `idx_email_status` ensured idempotently in FastAPI `lifespan`.
+- **Email**: Resend. Primary sender `PivotSafe <noreply@pivotsafe.com>` (verified domain). Sandbox fallback (`onboarding@resend.dev`) used only when the primary is rejected (e.g. mid-DNS-propagation).
+- **Env templates**: `/app/backend/.env.example`, `/app/frontend/.env.example`. Full README at `/app/README.md`.
 
-### Env vars
-**`/app/backend/.env`**
-- `MONGO_URL`, `DB_NAME=pivotsafe`
-- `RESEND_API_KEY` (re_…)
-- `RESEND_FROM` (display name + address)
-- `CONTACT_TO=hello@pivotsafe.com`
-- `CONTACT_RATE_LIMIT_PER_HOUR=3`
-- `ALLOWED_ORIGINS=*`
+## User Personas
+- Prospective enterprise buyer browsing the marketing site → clicks "Book a Free Consultation" or the floating chat bubble → fills the modal → lead lands in `hello@pivotsafe.com` + Mongo.
+- Team admin → polls `GET /api/contact/_admin/recent` with `Authorization: Bearer $ADMIN_TOKEN` for a quick lead digest.
 
-**`/app/frontend/.env`**
-- `REACT_APP_BACKEND_URL` & `NEXT_PUBLIC_BACKEND_URL` (both → external preview URL)
-- Exposed to the client bundle via `next.config.mjs` `env` block
+## Implemented
 
-## Implemented (Jan 2026)
+### Website content
+Hero CTA, Services (Application Security rename + ICS/SCADA, Embedded & IoT, AI Red Teaming descriptions), Training (Mobile App Hacker's Handbook removed), Recent Blogs hidden, Footer Home → `/`, Adversary-Sim (Embedded & IoT section removed), Real-World Skills modules rewritten to the 6 requested items, Application Security page renames.
 
-### Brand mark (new)
-- `src/components/custom/brandLogo.tsx` — reusable left-aligned lockup (gold-accented `⎑` glyph badge + `Pivot`+gold `Safe` wordmark, 3 sizes, optional link). Replaces the previous split layout where the `⎑` glyph drifted to the far-right under `justify-between`.
-- Applied site-wide via mass-replace: hero (`size="lg"`), floating navbar (`size="md"`), footer (`size="md"`), and **all 14 inner pages** (blogs index/slug/loading/not-found/error, cloud_security, ics_scada_security, real-world-skills, penetration_testing, adversary-simulation-red-team-ops, software_security, embedded_iot_security, ai_red_teaming, adversary_simulation).
+### Brand lockup
+`BrandLogo` component (gold-accented `⎑` badge + `Pivot`/gold `Safe` wordmark) applied flush-left in the hero, the floating navbar, the footer, and all 14 inner pages. Consistent `px-6 sm:px-10 lg:px-16` horizontal padding site-wide so the mark anchors the top-left corner on every route/width.
 
-### Real client logos
-- New PNG/SVG assets dropped in `/app/frontend/public/clients/`: NASA, Comcast, CrowdStrike, Deutsche Telekom, Ferrero, KOHO, Monash, Outbrain, Sezzle, ClickHouse, TrafficJunky.
-- Old placeholder logos (aidbase / lede / marblism / notion / paddle / zerotosaas) deleted.
-- `trustedClientsMovingCards.tsx` rewritten to consume `{src, alt}[]` items.
-- `infinite-moving-client-cards.tsx` rewritten:
-  - Each logo on a soft white chip (160×64, rounded-md, subtle shadow) so PNGs without alpha read clean against PivotSafe's near-black bg.
-  - `useCallback` for `addAnimation` (fixes hook-deps); marquee speed slowed to 90s for "slow"; mask-image gradient eased.
+### Client logos
+Real client PNG/SVG assets dropped in `/app/frontend/public/clients/`: NASA, Comcast, CrowdStrike, Deutsche Telekom, Ferrero, KOHO, Monash, Outbrain, Sezzle, ClickHouse, TrafficJunky. Low-res PNGs (77×75, 110×110) upscaled to 800px via LANCZOS so they render crisp in the marquee. Interactive styling: logos on white chips that lift, scale, and gain a gold ring + sheen sweep on hover.
 
-### Resend domain switch
-- `RESEND_FROM` now `PivotSafe <noreply@pivotsafe.com>` (verified domain).
-- New `RESEND_FALLBACK_FROM` env var. `_send_lead_email` now tries the verified domain first and gracefully falls back to the Resend sandbox sender if Resend rejects the primary (e.g. during DNS propagation). Verified live: when `pivotsafe.com` was still propagating, the fallback caught the send and the lead landed in `hello@pivotsafe.com` with `email_status=sent`.
+### Contact form (API-backed)
+- **Backend `/api/contact` (POST)**: validates name/email/message via Pydantic v2 + EmailStr, stores the lead in `contact_leads` first, then sends an HTML-escaped transactional email via Resend through `asyncio.to_thread`, then records `email_status`/`email_id`.
+- **Honeypot (`website`)**: populated → silent 201 (no DB, no email, rate-limit slot rolled back so bots can't burn the legit bucket for a real user behind the same NAT).
+- **Rate limiter**: in-process rolling 1-hour per-IP deque. Default 3/hr. Returns 429 with a friendly `detail`.
+- **Frontend `ContactWidget`**: floating bubble + modal mounted globally in `layout.tsx`. States: `idle → sending (spinner) → success / error`. Handles Pydantic v2 validation error arrays (`extractErrorMessage` extracts `msg` per field instead of crashing React). Privacy notice at the bottom of the form.
+- Hero "Book a Free Consultation" ShimmerButton dispatches `open-contact-popup` window event (no nested-button hydration warning).
 
-### Website content (initial pass)
-Hero CTA, Services (Application Security rename + new descriptions for ICS/SCADA, Embedded & IoT, AI Red Teaming), Training (removed Mobile App Hacker's Handbook), Recent Blogs hidden, Footer Home → `/`, Adversary-Sim page (Embedded & IoT section removed), Real-World Skills training modules rewritten to the 6 requested items, Application Security page renames. Logos kept as placeholders.
-
-### Code-review fixes
-- Hook deps fixed in `shapeThree`, `otherShapeThree`, `Gradientdiv`, `cards-demo-3`.
-- Array-index keys replaced with stable identifiers in `marquee`, `otherShapeThree`, `blogPagination`, `blogList`.
-- Console statements gated by `NODE_ENV === "development"` in `blogService.ts`, `blogs/[slug]/page.tsx`, `blogs/[slug]/error.tsx`.
-
-### UX polish
-- ICS/SCADA service card: grew card height to `30rem`, description uses `flex-1 leading-relaxed pb-4` so long copy fits inside the box.
-
-### Contact form (new)
-- **Backend `/api/contact` (POST)**: validates name/email/message via Pydantic v2 + EmailStr, persists lead to `contact_leads` first (never lose a lead), then sends Resend email via `asyncio.to_thread`, then updates `email_status`/`email_id` on the stored record.
-- **Honeypot**: hidden `website` field. If populated, the API short-circuits with a generic 201 `id=honeypot` (no DB write, no email) — bots can't tell they were caught.
-- **Rate limiter**: in-process per-IP rolling 1-hour bucket (deque). Default 3 req/hr; configurable via env. Returns 429 with a friendly `detail` over the limit.
-- **`/api/contact/_admin/recent` (GET)**: diagnostic-only, returns the most recent leads with `_id` projected out. Flagged in code as "remove or guard before production".
-- **`/api/health` (GET)**: liveness check.
-- **Frontend `ContactWidget`**:
-  - Floating chat bubble (bottom-right, mounted globally in `layout.tsx`) — opens modal.
-  - Hero `Book a Free Consultation` ShimmerButton → dispatches `open-contact-popup` window event.
-  - Modal has `idle` / `sending` (spinner + disabled inputs) / `success` (green check + personalized "Thanks, {firstName}") / `error` states.
-  - 429 surfaces a friendly rate-limit message inline.
-  - Hidden honeypot input mirrors the backend.
-- Hydration fix: `book-consultation-btn` test-id moved onto `ShimmerButton` (forwardRef'd `<button>`) — no more nested-button warning.
-
-## Files Touched (new + modified)
-**New**
-- `/app/backend/server.py`, `/app/backend/.env`, `/app/backend/requirements.txt`
-- `/app/frontend/src/components/custom/contactWidget.tsx`
-- `/app/frontend/.env`
-- `/app/backend/tests/test_contact_api.py` (testing agent)
-
-**Modified**
-- `/app/frontend/next.config.mjs` (env exposure)
-- `/app/frontend/src/app/layout.tsx` (mount ContactWidget)
-- `/app/frontend/src/components/custom/hero.tsx` (CTA → modal)
-- `/app/frontend/src/components/custom/serviceCard.tsx` (height + flex)
+### Production-readiness (latest pass)
+- **CORS allowlist** via `ALLOWED_ORIGINS` env (comma-separated). Wildcard only in dev.
+- **Admin bearer auth** (`ADMIN_TOKEN`) on `/api/contact/_admin/*`. Fail-closed: when token is unset, the routes return 404.
+- **FastAPI docs disabled** in prod (`docs_url=None`, `redoc_url=None`, `openapi_url=None`).
+- **DB health** pinged in `/api/health` (returns `status: "degraded"` if Mongo is down).
+- **Lead/email resilience**: persistence and email sends are independent try/except. 503 only fires when both fail.
+- **HTML escape** applied to every user-controlled field rendered into the outbound email body (no XSS via lead content).
+- **User-agent capping** at 500 chars on the stored lead.
+- **SEO**: full `Metadata` config (title template, description, OpenGraph, Twitter card, robots, themeColor, canonical) in `layout.tsx`.
+- **`/robots.txt`** + dynamic **`/sitemap.xml`** (11 routes, excluding blog detail pages while content is hidden).
+- **Contentful null-safe**: `client` is `null` when credentials are missing → service fns short-circuit → `next build` succeeds without env.
+- **Env templates** committed (`backend/.env.example`, `frontend/.env.example`) with comments on each variable.
+- **Build verification**: `yarn build` passes — 16 routes prerendered (`/sitemap.xml` included).
+- **Dev/prod scripts separated**: `yarn start` = clean dev (`rm -rf .next` then `next dev`), `yarn start:prod` = `next build && next start`.
+- **README** at `/app/README.md` documents the architecture, env vars, API surface, security guarantees, dev vs prod toggle, and backlog.
 
 ## Test Status
-Iteration 1 (`/app/test_reports/iteration_1.json`): **6/6 backend + 4/4 frontend smoke tests passed.** Resend integration verified live (`email_status=sent`, real `email_id` returned). Hydration warning was MEDIUM — fixed in main agent's follow-up commit (verified clean console).
+- **Iteration 1** (`/app/test_reports/iteration_1.json`): 6/6 backend + 4/4 frontend smoke passed. Resend integration verified live (not mocked).
+- **Iteration 2** (`/app/test_reports/iteration_2.json`): 16/16 backend hardening + 3/3 frontend smoke passed. Surfaced the `.next/` stale-prerender-cache bug — fixed in `package.json` so every supervisor restart wipes `.next` before `next dev` boots. Re-verified: bubble is `position: fixed` at bottom-right, modal opens with the privacy notice, and response headers no longer carry `x-nextjs-prerender` / `x-nextjs-cache: HIT`.
+
+## Files Touched
+
+**New**
+- `/app/backend/server.py`, `.env`, `.env.example`, `requirements.txt`
+- `/app/frontend/src/components/custom/contactWidget.tsx`
+- `/app/frontend/src/components/custom/brandLogo.tsx`
+- `/app/frontend/src/app/sitemap.ts`
+- `/app/frontend/public/robots.txt`
+- `/app/frontend/public/clients/*` (real brand assets)
+- `/app/frontend/.env`, `.env.example`
+- `/app/README.md`, `/app/memory/PRD.md`
+
+**Rewritten / heavily modified**
+- `/app/frontend/src/app/layout.tsx` — Metadata + Viewport
+- `/app/frontend/src/lib/contentful.ts` — null-safe client
+- `/app/frontend/src/lib/blogService.ts` — short-circuit on missing client
+- `/app/frontend/src/components/ui/infinite-moving-client-cards.tsx`
+- `/app/frontend/src/components/ui/animated-tooltip.tsx`
+- `/app/frontend/src/components/custom/aboutUsToolTip.tsx` (names/designations removed)
+- `/app/frontend/src/components/custom/trustedClientsMovingCards.tsx`
+- `/app/frontend/src/components/custom/hero.tsx` (flush-left logo)
+- `/app/frontend/src/components/custom/footerSection.tsx`
+- `/app/frontend/src/components/custom/serviceCard.tsx`
+- `/app/frontend/src/components/ui/floating-navbar.tsx`
+- 14 inner pages (logo lockup + flush-left header)
+- `/app/frontend/package.json` — safe dev start script
 
 ## Backlog / Future Work
-- **DNS verify `pivotsafe.com` on Resend** so emails come from `noreply@pivotsafe.com` instead of the sandbox sender (better deliverability + branding).
-- **Guard `/api/contact/_admin/recent`** behind an admin token / env flag, or remove for production.
-- **Move rate limiter** from in-process deque to Redis or Mongo TTL collection so it survives restarts and works across replicas.
-- **Tighten `_client_ip()`** — currently trusts `X-Forwarded-For` blindly; in a real multi-hop ingress this can be spoofed to bypass rate limits. Use right-most hop or known-proxy whitelist.
-- **Set explicit `ALLOWED_ORIGINS`** in production .env (`https://pivotsafe.com,https://www.pivotsafe.com`).
-- **Outgoing email aspect-ratio warnings** in Next.js Image — minor cosmetic.
-- Real client/partner logos in `/app/frontend/public/clients/` (still placeholders).
-- Re-enable Contentful blogs once content is published.
-- Optional: lightweight Slack/Discord webhook on lead capture for instant notifications.
-
-## Next Action Items
-- Verify `pivotsafe.com` on Resend, then update `RESEND_FROM` to `PivotSafe <noreply@pivotsafe.com>`.
-- Drop in real client logos when ready.
-- Decide on retention policy for `contact_leads` (e.g., 12-month TTL).
+- **P1**: Migrate rate-limit bucket to Redis / Mongo TTL so it survives restarts and scales horizontally.
+- **P1**: Rotate `ADMIN_TOKEN` on a schedule (or migrate to per-admin JWTs).
+- **P2**: 12-month TTL on `contact_leads` (PII retention policy).
+- **P2**: Optional Slack/Discord webhook on each lead for real-time pings.
+- **P2**: Re-enable Contentful blog flow when content is published (just set `NEXT_PUBLIC_CONTENTFUL_*` env vars — no code change needed).
+- **P3**: Real client logos are already in place; adding a clickable case-study page per logo is a latent SEO/conversion lever.
