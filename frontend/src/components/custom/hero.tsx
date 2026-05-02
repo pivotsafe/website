@@ -3,6 +3,7 @@ import React from "react";
 import dynamic from "next/dynamic";
 import { ShimmerButton } from "../magicui/shimmer-button";
 import BrandLogo from "./brandLogo";
+import SceneErrorBoundary from "./sceneErrorBoundary";
 
 // 3D hero scene (~1 MB of three.js + drei + rapier). Loaded client-side only,
 // lazily, AFTER the hero text + CTA paint. The graceful placeholder fades out
@@ -47,7 +48,9 @@ const Hero = () => {
                 className="w-[200%] h-full absolute top-[50%] left-[30%]"
                 style={{ transform: "translate(-50%, -50%)" }}
               >
-                <OtherShapeThree />
+                <SceneErrorBoundary>
+                  <OtherShapeThree />
+                </SceneErrorBoundary>
               </div>
 
               {/* Hero copy + CTA sit in z-10 so they paint INSTANTLY,
